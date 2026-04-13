@@ -1,0 +1,75 @@
+# Secrets / local env
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDEs
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project outputs / large artifacts (keep repo lightweight)
+data/
+checkpoints/
+demo_checkpoints/
+demo_logs/
+analysis_results/
+results/
+run_logs/
+run_pid/
+fphm_runs/
+fphm_logs/
+dialsim_runs/
+dialsim_manifests/
+dialsim_scene_examples/
+evidence_test_results*/
+full_context_test_results*/
+_invalid_uiui_api_*/
+_tmp_*/
+tmp_*/
+code_backup_*/
+
+# Large binary artifacts
+*.pickle
+*.pkl
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+*.npz
+*.npy
+*.parquet
+*.arrow
+*.h5
+*.hdf5
+
+# Logs (misc)
+*.log
+*.out
+*.err
+*.out.txt
+*.err.txt

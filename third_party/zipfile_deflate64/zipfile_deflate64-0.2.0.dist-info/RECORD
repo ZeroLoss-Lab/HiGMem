@@ -1,0 +1,14 @@
+zipfile_deflate64-0.2.0.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
+zipfile_deflate64-0.2.0.dist-info/LICENSE,sha256=HrhfyXIkWY2tGFK11kg7vPCqhgh5DcxleloqdhrpyMY,11558
+zipfile_deflate64-0.2.0.dist-info/METADATA,sha256=-ryackPWCiRYnpDHYceoO8CtM8QSAK8oZ8Sf-iMUPpQ,5982
+zipfile_deflate64-0.2.0.dist-info/RECORD,,
+zipfile_deflate64-0.2.0.dist-info/REQUESTED,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
+zipfile_deflate64-0.2.0.dist-info/WHEEL,sha256=fVcVlLzi8CGi_Ul8vjMdn8gER25dn5GBg9E6k9z41-Y,100
+zipfile_deflate64-0.2.0.dist-info/top_level.txt,sha256=ZAy5yzdcQRf6EpRV6YeQVJpo8IO5EX9Zal8FV3KsPEM,18
+zipfile_deflate64/__init__.py,sha256=GlLOdc7md9q21tz1T8cvw4u5K23g2K0GKSlzRJclj1M,345
+zipfile_deflate64/__pycache__/__init__.cpython-39.pyc,,
+zipfile_deflate64/__pycache__/_patcher.cpython-39.pyc,,
+zipfile_deflate64/__pycache__/_zipfile.cpython-39.pyc,,
+zipfile_deflate64/_patcher.py,sha256=Y7FZXL-0eKlPE7Nq7WDxbis8-JO15vUCf1xlM98Lpis,488
+zipfile_deflate64/_zipfile.py,sha256=nl-miG77QV4oGMjj7abjWI7ZFu40VO2C3ryBVssdMEQ,1208
+zipfile_deflate64/deflate64.cp39-win_amd64.pyd,sha256=YVYgB_13sAnxkT1dJ4eOJNQrRlfmP5v2f-zo4tthzvU,22016
