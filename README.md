@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9](https://img.shields.io/badge/Python-3.9-blue.svg)](https://www.python.org/)
 
-Official reproduction code for **HiGMem: A Hierarchical and LLM-Guided Memory System for Long-Term Conversational Agents**.
+Official reproduction code for **HiGMem: A Hierarchical LLM-Guided Memory System for Long-Term Conversational Agents**.
 
 The paper uses the name **HiGMem**. Some source files keep the internal development name `fphm`; this is a naming difference only.
 
