@@ -1,5 +1,4 @@
 # analyze_recall.py
-# --- MODIFICATION START ---
 import json
 import argparse
 from collections import defaultdict
@@ -380,10 +379,8 @@ def main():
     total_qas = sum(len(qas) for qas in qa_by_sample.values())
     print(f"Loaded {total_qas} QAs across {len(qa_by_sample)} samples.")
 
-    # 代码内注释：【BUG修复核心】步骤1：收集所有运行实例，按配置名称分组。
     configurations = defaultdict(list)
 
-    # 1. 发现全样本运行
     runs_dir = Path(args.runs_dir)
     full_run_pattern = re.compile(r"(.+)_(\d{8}_\d{6})")
     if runs_dir.exists():
@@ -429,7 +426,6 @@ def main():
                     "checkpoint_paths": checkpoint_paths, "result_path": result_path
                 })
 
-    # 2. 发现单一样本运行 (sample 0)
     single_run_log_pattern = re.compile(r"run_(.+)_(\d{8}_\d{6})\.jsonl$")
     for log_file in Path(args.logs_dir).glob("*.jsonl"):
         match = single_run_log_pattern.match(log_file.name)
@@ -451,11 +447,9 @@ def main():
                 "checkpoint_paths": [checkpoint_path], "result_path": latest_result
             })
 
-    # 代码内注释：【BUG修复核心】步骤2：从每个分组中只选择最新的运行实例。
     final_runs_to_analyze = []
     for config_name, run_list in configurations.items():
         if not run_list: continue
-        # 代码内注释：按时间戳降序排序，并取第一个（即最新的）
         latest_run = sorted(run_list, key=lambda x: x['timestamp'], reverse=True)[0]
         latest_run['config_name'] = config_name
         final_runs_to_analyze.append(latest_run)
@@ -539,4 +533,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# --- MODIFICATION END ---

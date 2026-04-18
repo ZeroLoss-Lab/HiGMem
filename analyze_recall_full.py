@@ -1,5 +1,4 @@
 # analyze_recall_full.py
-# --- MODIFICATION START ---
 import json
 import argparse
 from collections import defaultdict
@@ -285,7 +284,6 @@ def main():
 
     configurations = defaultdict(list)
 
-    # 1. 发现全样本运行
     runs_dir = Path(args.runs_dir)
     full_run_pattern = re.compile(r"(.+)_(\d{8}_\d{6})")
     if runs_dir.exists():
@@ -296,20 +294,16 @@ def main():
 
             config_name, timestamp = match.groups()
 
-            # 代码内注释：【BUG修复】从构造路径改为发现路径。
             log_paths, checkpoint_paths = [], []
             is_complete = True
             for sample_dir in run_dir.glob("sample_*"):
-                # 代码内注释：在每个sample目录中查找唯一的日志文件。
                 found_logs = list(sample_dir.glob("*.jsonl"))
-                # 代码内注释：在对应的checkpoints目录中查找唯一的final pkl文件。
                 found_checkpoints = list((sample_dir / "checkpoints").glob("*_final.pkl"))
 
                 if len(found_logs) == 1 and len(found_checkpoints) == 1:
                     log_paths.append(found_logs[0])
                     checkpoint_paths.append(found_checkpoints[0])
                 else:
-                    # 代码内注释：如果任何一个sample目录缺少文件，则认为该次运行不完整，跳过。
                     is_complete = False
                     break
 
@@ -321,7 +315,6 @@ def main():
                     "checkpoint_paths": checkpoint_paths, "result_path": result_path
                 })
 
-    # 2. 发现单一样本运行 (sample 0)
     single_run_log_pattern = re.compile(r"run_(.+)_\d{8}_\d{6}\.jsonl")
     for log_file in Path(args.logs_dir).glob("*.jsonl"):
         match = single_run_log_pattern.match(log_file.name)
@@ -330,7 +323,6 @@ def main():
         full_name_from_log = match.group(1)
         if "sample_" in full_name_from_log: continue
 
-        # 代码内注释：从日志文件名中提取配置名和时间戳
         try:
             timestamp = '_'.join(log_file.stem.split('_')[-2:])
             config_name = log_file.stem.replace(f"run_{timestamp}", "")[4:]  # remove "run_" and timestamp
@@ -421,4 +413,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-# --- MODIFICATION END ---

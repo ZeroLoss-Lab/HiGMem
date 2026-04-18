@@ -1,8 +1,17 @@
-# --- MODIFICATION START ---
 # full_context_test.py
+import os
+
+try:
+    from dotenv import load_dotenv  # type: ignore
+
+    _ENV_PATH = os.path.join(os.path.dirname(__file__), ".env")
+    if os.path.exists(_ENV_PATH):
+        load_dotenv(_ENV_PATH)
+except Exception:
+    pass
+
 import argparse
 import json
-import os
 import random
 from tqdm import tqdm
 from collections import defaultdict
@@ -10,7 +19,6 @@ import sys
 from datetime import datetime
 import time
 import tiktoken
-# 代码内注释：导入多进程执行器
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from memory_layer import LLMController
@@ -129,9 +137,7 @@ def analyze_and_print_top_bottom_results(qa_results: list, output_dir: str, run_
         print(f"\nError saving analysis file: {e}")
 
 
-# 代码内注释：将处理单个样本的逻辑封装成一个独立的函数，这是实现多进程的关键。
 def process_single_sample(args, sample, base_run_name, output_dir, is_single_sample_run: bool):
-    # 代码内注释：根据运行模式（单/多进程）确定日志和输出文件的命名方式。
     if is_single_sample_run:
         log_dir = "fphm_logs"
         file_run_name = base_run_name
@@ -139,7 +145,6 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
         log_dir = output_dir
         file_run_name = f"{base_run_name}_sample_{sample.sample_id}"
 
-    # 代码内注释：每个进程创建自己的LLM控制器和Logger实例，避免跨进程共享对象。
     llm_controller = LLMController(
         backend=args.backend, model=args.model,
         api_key=args.api_key, api_base=args.api_base
@@ -149,13 +154,11 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
     sample_metrics, sample_categories = [], []
     qa_results_for_analysis = []
 
-    # 代码内注释：初始化用于存储每个QA对性能指标的列表。
     all_qa_durations = []
     all_prompt_tokens = []
     all_completion_tokens = []
     all_total_tokens = []
     try:
-        # 代码内注释：加载tiktoken编码器，用于估算token数量。cl100k_base是GPT-3.5/4模型的标准编码。
         encoding = tiktoken.get_encoding("cl100k_base")
     except Exception as e:
         print(f"Warning: Could not initialize tiktoken for token estimation. Token counts will be zero. Error: {e}")
@@ -171,7 +174,7 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
         if not qa.evidence:
             continue
 
-        temperature = 0.1
+        temperature = 0.0
         final_prompt = build_category_prompt(
             category=qa.category,
             context=context,
@@ -179,7 +182,6 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
             qa=qa
         )
 
-        # 代码内注释：在LLM调用之前记录开始时间。
         start_time = time.time()
         try:
             response = llm_controller.llm.get_completion(
@@ -196,12 +198,10 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
         except Exception as e:
             prediction = f"Error during LLM call: {e}"
             print(f"Warning: LLM call failed for question '{qa.question}'. Error: {e}")
-        # 代码内注释：在LLM调用之后记录结束时间，并计算耗时。
         end_time = time.time()
         duration = end_time - start_time
         all_qa_durations.append(duration)
 
-        # 代码内注释：使用tiktoken估算prompt和completion的token数量。
         if encoding:
             prompt_tokens = len(encoding.encode(final_prompt))
             completion_tokens = len(encoding.encode(prediction))
@@ -209,7 +209,6 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
             prompt_tokens, completion_tokens = 0, 0
         total_tokens = prompt_tokens + completion_tokens
 
-        # 代码内注释：将本次QA的token开销添加到列表中。
         all_prompt_tokens.append(prompt_tokens)
         all_completion_tokens.append(completion_tokens)
         all_total_tokens.append(total_tokens)
@@ -237,14 +236,12 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
             "reference": qa.final_answer,
             "category": qa.category,
             "metrics": metrics,
-            # 代码内注释：将单次QA的时间和token开销记录到详细日志中。
             "duration_seconds": duration,
             "prompt_tokens_estimated": prompt_tokens,
             "completion_tokens_estimated": completion_tokens,
             "total_tokens_estimated": total_tokens
         })
 
-    # 代码内注释：为单个样本计算性能指标。
     performance_metrics = {}
     if all_qa_durations:
         performance_metrics = {
@@ -255,7 +252,6 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
             "average_total_tokens_estimated_per_qa": sum(all_total_tokens) / len(all_total_tokens),
         }
 
-    # 代码内注释：函数返回该样本的所有结果，以便主进程进行聚合。
     return sample_metrics, sample_categories, qa_results_for_analysis, performance_metrics
 
 
@@ -270,12 +266,10 @@ def run_full_context_test(args):
     all_qa_results_for_analysis = []
     all_performance_metrics = []
 
-    # 代码内注释：这是模式切换的核心。如果指定了sample_index，则进入单进程模式。
     if args.sample_index is not None:
         if args.sample_index < len(samples):
             sample = samples[args.sample_index]
             print(f"Running in single-sample mode for sample index: {args.sample_index}")
-            # 代码内注释：直接调用worker函数。
             metrics, categories, qa_results, perf_metrics = process_single_sample(
                 args, sample, base_run_name, output_dir=None, is_single_sample_run=True
             )
@@ -288,7 +282,6 @@ def run_full_context_test(args):
             print(f"Error: Sample index {args.sample_index} is out of bounds.")
             return
     else:
-        # 代码内注释：进入多进程模式。
         print(f"Running in parallel mode for all {len(samples)} samples with {args.num_workers} workers.")
         main_run_dir = os.path.join("fphm_runs", f"{base_run_name}_{timestamp}")
         os.makedirs(main_run_dir, exist_ok=True)
@@ -297,20 +290,16 @@ def run_full_context_test(args):
         with ProcessPoolExecutor(max_workers=args.num_workers) as executor:
             futures = []
             for sample in samples:
-                # 代码内注释：为每个样本创建独立的输出目录，避免日志文件冲突。
                 sample_output_dir = os.path.join(main_run_dir, f"sample_{sample.sample_id}")
                 os.makedirs(sample_output_dir, exist_ok=True)
-                # 代码内注释：向进程池提交任务。
                 future = executor.submit(
                     process_single_sample, args, sample, base_run_name, sample_output_dir, is_single_sample_run=False
                 )
                 futures.append(future)
 
-            # 代码内注释：使用tqdm和as_completed来实时获取已完成任务的结果并显示进度。
             progress_bar = tqdm(as_completed(futures), total=len(samples), desc="Processing Samples")
             for future in progress_bar:
                 try:
-                    # 代码内注释：从future中解包返回的结果。
                     sample_metrics, sample_categories, qa_results, perf_metrics = future.result()
                     all_metrics.extend(sample_metrics)
                     all_categories.extend(sample_categories)
@@ -326,7 +315,6 @@ def run_full_context_test(args):
 
     aggregate_results = aggregate_metrics(all_metrics, all_categories)
 
-    # 代码内注释：在所有QA完成后，计算并聚合总的平均性能指标。
     if all_performance_metrics:
         total_qas = sum(p['total_questions_processed'] for p in all_performance_metrics)
         if total_qas > 0:
@@ -342,13 +330,11 @@ def run_full_context_test(args):
                 "average_completion_tokens_estimated_per_qa": avg_completion_tokens,
                 "average_total_tokens_estimated_per_qa": avg_total_tokens,
             }
-            # 代码内注释：将性能指标字典添加到最终的聚合结果中。
             aggregate_results["performance_metrics"] = overall_performance
 
     print(f"\n--- Evaluation Summary for Mode: Full Context ---")
     print(json.dumps(aggregate_results, indent=2))
 
-    # 代码内注释：根据运行模式确定最终结果的保存路径。
     if args.sample_index is None:
         results_dir = main_run_dir
     else:
@@ -378,7 +364,6 @@ if __name__ == "__main__":
     parser.add_argument("--api_key", type=str, help="API key")
     parser.add_argument("--api_base", type=str, help="API base URL")
     parser.add_argument("--sample_index", type=int, help="Run on a single sample index. Omit to run on all.")
-    # 代码内注释：添加--num-workers参数，用于指定并行运行的进程数。
     parser.add_argument("--num-workers", type=int, default=4, help="Number of parallel processes for multi-sample evaluation.")
 
     if len(sys.argv) == 1:
@@ -390,7 +375,6 @@ if __name__ == "__main__":
             api_key=os.getenv("OPENAI_API_KEY"),
             api_base=os.getenv("OPENAI_API_BASE"),
             sample_index=0,
-            # 代码内注释：为默认设置添加num_workers。
             num_workers=4,
         )
     else:
@@ -400,9 +384,8 @@ if __name__ == "__main__":
             backend="openai",
             api_key=os.getenv("OPENAI_API_KEY"),
             api_base=os.getenv("OPENAI_API_BASE"),
-            sample_index=None, # 代码内注释：默认在所有样本上运行
+            sample_index=None,
         )
         args = parser.parse_args()
 
     run_full_context_test(args)
-# --- MODIFICATION END ---

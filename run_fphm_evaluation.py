@@ -31,7 +31,7 @@ import prompts
 
 def build_category_prompt(category: int, context: str, question: str, qa=None) -> str:
     """
-    根据问题类别生成与SOTA论文一致的prompt。
+    Build the final QA prompt using the LoCoMo prompt family aligned with A-Mem.
     """
     prompt = ""
     if category == 5:
@@ -79,8 +79,11 @@ def generate_keyword_query(llm_controller: LLMController, original_query: str) -
         }
     }
     try:
-        response_str = llm_controller.llm.get_completion(prompt,
-                                                         response_format={"type": "json_schema", "json_schema": schema})
+        response_str = llm_controller.llm.get_completion(
+            prompt,
+            response_format={"type": "json_schema", "json_schema": schema},
+            temperature=0.0,
+        )
         data = json.loads(response_str)
         return {
             "keyword_query": data.get("keyword_query", " ".join(original_query.lower().replace("?", "").split())),
@@ -112,7 +115,6 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
 
     final_checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_{file_run_name}_final.pkl")
 
-# --- MODIFICATION START ---
     memory_system = FPHMSystem(
         llm_controller=llm_controller,
         run_name=file_run_name,
@@ -126,10 +128,8 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
         ablation_no_filter=args.ablation_no_filter,
         ablation_no_link=args.ablation_no_link,
         ablation_no_event=args.ablation_no_event,
-        # 代码内注释：将新的消融标志传递给FPHMSystem的构造函数。
         ablation_mpnet_retrieval=args.ablation_mpnet_retrieval
     )
-# --- MODIFICATION END ---
 
     if os.path.exists(final_checkpoint_path):
         print(f"Sample {sample.sample_id}: Resuming from final checkpoint: {final_checkpoint_path}")
@@ -180,26 +180,19 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
         qa_items = qa_items[: max(0, int(args.max_questions))]
     for qa in tqdm(qa_items, desc=f"Sample {sample.sample_id} QA", leave=False):
         qa_start_time = time.time()
-# --- MODIFICATION START ---
-        # 代码内注释：可选地关闭“LLM关键词/查询改写”，直接用原始问题做检索（更省调用、更稳）。
         if args.disable_query_rewriting_llm:
             keyword_query = qa.question
             profile_keys = []
             memory_system.logger.log("query_rewriting_disabled", {"original": qa.question})
-        # 代码内注释：根据新的消融标志，选择使用哪种查询重写方法。
         elif args.ablation_mpnet_retrieval:
-            # 代码内注释：调用FPHMSystem中新增的、使用MPNet优化prompt的查询生成方法。
             keyword_query = memory_system.generate_query_llm(qa.question)
-            # 代码内注释：由于新方法不提取profile keys，且你的配置是no_profile，这里设为空列表是安全的。
             profile_keys = []
             memory_system.logger.log("query_rewriting_mpnet", {"original": qa.question, "rewritten_query": keyword_query})
         else:
-            # 代码内注释：保持原有的查询重写逻辑。
             query_data = generate_keyword_query(llm_controller, qa.question)
             keyword_query = query_data["keyword_query"]
             profile_keys = query_data["profile_retrieval_keys"]
             memory_system.logger.log("query_rewriting", {"original": qa.question, "rewritten_data": query_data})
-# --- MODIFICATION END ---
         context = memory_system.retrieve_for_query(
             original_query=qa.question,
             keyword_query=keyword_query,
@@ -211,7 +204,7 @@ def process_single_sample(args, sample, base_run_name, output_dir, is_single_sam
         final_prompt = build_category_prompt(
             category=qa.category, context=context, question=qa.question, qa=qa
         )
-        temperature = 0.1
+        temperature = 0.0
         answer_json = memory_system._get_llm_json_response(
             final_prompt,
             {"name": "response",
@@ -246,10 +239,7 @@ def run_evaluation(args):
     if args.ablation_no_fact_judgment: ablation_tags.append('no_fact_judge')
     if args.ablation_no_filter: ablation_tags.append('no_filter')
     if args.ablation_no_link: ablation_tags.append('no_link')
-# --- MODIFICATION START ---
-    # 代码内注释：如果启用了新的MPNet检索消融，将其作为一个标签添加到运行名称中，以便区分结果文件。
     if args.ablation_mpnet_retrieval: ablation_tags.append('mpnet_retrieval')
-# --- MODIFICATION END ---
     if not ablation_tags:
         run_name_parts.append('full_system')
     else:
@@ -371,11 +361,8 @@ if __name__ == "__main__":
                         help="Ablation: Disable immediate context linking during TurnNote creation.")
     parser.add_argument("--ablation-no-event", action="store_true",
                         help="Ablation: Disable both Event and Profile layers, operating only on TurnNotes.")
-# --- MODIFICATION START ---
-    # 代码内注释：添加新的命令行参数，用于启用MPNet检索策略。
     parser.add_argument("--ablation-mpnet-retrieval", action="store_true",
                         help="Ablation: Use MPNet retriever and new declarative query rewriting.")
-# --- MODIFICATION END ---
     parser.add_argument("--disable_query_rewriting_llm", action="store_true",
                          help="Disable LLM-based query rewriting/keyword generation; use the original question for retrieval.")
 
@@ -386,4 +373,3 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     run_evaluation(args)
-# --- fphm_code_changes_end ---

@@ -1,7 +1,6 @@
 # prompts.py
 
 # -----------------------------------------------------------------------------
-# 1. TurnNote级别 (底层)
 # -----------------------------------------------------------------------------
 
 # prompts.py
@@ -40,7 +39,6 @@ You are a dialogue analyst and knowledge graph architect. Your task is to proces
 
 
 # -----------------------------------------------------------------------------
-# 2. EventSummary级别 (中层)
 # -----------------------------------------------------------------------------
 
 UPDATE_EVENT_PROMPT = """
@@ -76,7 +74,6 @@ You are a meticulous archivist. Your task is to update an event summary and its 
 """
 
 # -----------------------------------------------------------------------------
-# 3. CharacterProfile级别 (顶层)
 # -----------------------------------------------------------------------------
 
 PROFILE_UPDATE_DECISION_PROMPT = """
@@ -127,10 +124,8 @@ You are a character analyst and biographer. Update the profile for an entity (pe
 """
 
 # -----------------------------------------------------------------------------
-# 4. QA检索相关
 # -----------------------------------------------------------------------------
 
-# 【保持不变】这个Prompt用于事件归属，其逻辑是正确的。
 EVENT_AFFILIATION_PROMPT = """
 You are a memory organization agent. Your task is to determine the event affiliation for a "New Turn". A turn can belong to one or more existing events, or be the start of a new one.
 
@@ -157,7 +152,6 @@ You are a memory organization agent. Your task is to determine the event affilia
 }}
 """
 
-# 【修改】增强RELEVANCE_JUDGMENT_PROMPT，使其在关注主语的同时，具有一定的灵活性。
 RELEVANCE_JUDGMENT_PROMPT = """
 You are a helpful research assistant. Your task is to judge if the following memory items are helpful for answering the question.
 
@@ -179,7 +173,6 @@ You are a helpful research assistant. Your task is to judge if the following mem
 }}
 """
 
-# 【修改】增强QUERY_REWRITING_PROMPT，使其同时提取关键词和用于Profile检索的实体键
 QUERY_REWRITING_PROMPT = """
 You are a search query optimization expert. Your task is to analyze a user's question and extract two types of information:
 1.  **Keyword Query**: A concise set of keywords for vector-based semantic search. Extract important entities, concepts, and actions. Omit conversational filler or question words.
@@ -303,9 +296,6 @@ You are a meticulous archivist. Your task is to update a small event's metadata 
   ]
 }}
 """
-# --- MODIFICATION END ---
-# 这个Prompt用于处理包含10个或更多Turn的大事件。
-# 它只要求LLM从新Turn中提取事实，而不需要更新标题等元数据，以节省成本和保持稳定性。
 UPDATE_EVENT_TITLE_MODE_LARGE_EVENT_PROMPT = """
 You are a factual data entry assistant. Your task is to extract ONLY the new, objective facts from a "New Turn" and format them for addition to an existing event's fact sheet. Do not summarize or analyze.
 ## Core Instructions:
@@ -371,8 +361,6 @@ You are a data entry assistant. Your task is to extract new, objective facts fro
   ]
 }}
 """
-# 【新增】为消融实验3 (no-link) 设计的Prompt
-# 这是 CREATE_AND_LINK_TURN_PROMPT 的简化版，移除了历史上下文和链接生成的指令。
 CREATE_TURN_NOTE_ISOLATED_PROMPT = """
 You are a dialogue analyst. Your task is to process a "Current Turn" in isolation by analyzing its content and identifying key entities.
 ## Core Instructions:

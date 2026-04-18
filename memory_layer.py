@@ -81,17 +81,7 @@ class OpenAIController(BaseLLMController):
         except ImportError:
             raise ImportError("OpenAI package not found. Install it with: pip install openai")
     
-    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.7) -> str:
-        # Allow overriding max_tokens for OpenAI-compatible servers (e.g., vLLM) that may enforce
-        # a smaller context or reject very large limits.
-        max_tokens = 16000
-        try:
-            v = os.getenv("OPENAI_MAX_TOKENS", "").strip()
-            if v:
-                max_tokens = int(v)
-        except Exception:
-            pass
-
+    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.0) -> str:
         messages = [
             {"role": "system", "content": "You must respond with a JSON object."},
             {"role": "user", "content": prompt},
@@ -105,7 +95,6 @@ class OpenAIController(BaseLLMController):
                 messages=messages,
                 response_format=response_format,
                 temperature=temperature,
-                max_tokens=max_tokens,
             )
         except Exception as e:
             msg = str(e).lower()
@@ -114,7 +103,6 @@ class OpenAIController(BaseLLMController):
                     model=self.model,
                     messages=messages,
                     temperature=temperature,
-                    max_tokens=max_tokens,
                 )
             else:
                 raise
@@ -158,7 +146,7 @@ class OllamaController(BaseLLMController):
         
         return result
 
-    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.7) -> str:
+    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.0) -> str:
         try:
             response = completion(
                 model="ollama_chat/{}".format(self.model),
@@ -208,7 +196,7 @@ class SGLangController(BaseLLMController):
         
         return result
 
-    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.7) -> str:
+    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.0) -> str:
         try:
             # Extract JSON schema from response_format and convert to string format
             json_schema = response_format.get("json_schema", {}).get("schema", {})
@@ -290,7 +278,7 @@ class LiteLLMController(BaseLLMController):
         
         return result
 
-    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.7) -> str:
+    def get_completion(self, prompt: str, response_format: dict, temperature: float = 0.0) -> str:
         try:
             # Prepare completion arguments
             completion_args = {
@@ -642,33 +630,29 @@ class HybridRetriever:
 
 class SimpleEmbeddingRetriever:
     """
-    【增强版】的检索器，支持高效的单文档增量添加和批量构建。
+    Embedding retriever with efficient single-document updates and bulk rebuilds.
     """
 
     def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):
         import numpy as np
         self.model = _get_sentence_transformer(model_name)
-        # corpus 和 document_ids 现在都是列表，顺序严格对应
         self.corpus: List[str] = []
         self.document_ids: List[str] = []
         # Fast id -> index mapping for O(1) updates / subset scoring.
         self.id_to_index: Dict[str, int] = {}
-        # embeddings 是一个 numpy 数组
         self.embeddings: Optional[np.ndarray] = None
 
     def add_document(self, doc_id: str, doc_content: str):
         """
-        【新增】高效地添加或更新单个文档。
+        Add or update a single document efficiently.
         """
         idx = self.id_to_index.get(doc_id)
         if idx is not None:
-            # 如果文档已存在，则更新它
             new_embedding = self.model.encode([doc_content])
             self.corpus[idx] = doc_content
             if self.embeddings is not None:
                 self.embeddings[idx] = new_embedding[0]
         else:
-            # 如果是新文档，则追加
             new_embedding = self.model.encode([doc_content])
             self.corpus.append(doc_content)
             self.document_ids.append(doc_id)
@@ -676,20 +660,18 @@ class SimpleEmbeddingRetriever:
             if self.embeddings is None:
                 self.embeddings = new_embedding
             else:
-                # 使用 np.vstack 来高效地追加 embedding
                 self.embeddings = np.vstack([self.embeddings, new_embedding])
 
     def add_documents(self, docs: Dict[str, str]):
         """
-        【修改】批量添加文档，现在接收一个 字典 {id: content}。
-        用于一次性构建或重构索引，更高效。
+        Bulk-add documents from a `{id: content}` mapping.
+        This is used for initial builds and full index rebuilds.
         """
         if not docs:
             self.corpus = []
             self.document_ids = []
             self.embeddings = None
             return
-        # 保证顺序
         self.document_ids = list(docs.keys())
         self.corpus = list(docs.values())
         self.embeddings = self.model.encode(self.corpus)
@@ -697,7 +679,7 @@ class SimpleEmbeddingRetriever:
 
     def search(self, query: str, k: int = 5) -> List[int]:
         """
-        【保持健壮】搜索逻辑保持不变，依然健壮。
+        Search the index and return the top matching indices.
         """
         if not self.corpus or self.embeddings is None:
             return []

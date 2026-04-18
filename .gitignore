@@ -31,8 +31,7 @@ env/
 .DS_Store
 Thumbs.db
 
-# Project outputs / large artifacts (keep repo lightweight)
-data/
+# Project outputs / generated artifacts
 checkpoints/
 demo_checkpoints/
 demo_logs/
@@ -42,9 +41,6 @@ run_logs/
 run_pid/
 fphm_runs/
 fphm_logs/
-dialsim_runs/
-dialsim_manifests/
-dialsim_scene_examples/
 evidence_test_results*/
 full_context_test_results*/
 _invalid_uiui_api_*/

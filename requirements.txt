@@ -10,7 +10,6 @@ rank-bm25==0.2.2
 openai==1.61.1
 litellm==1.59.1
 ollama==0.3.3
-#aiohttp==3.13.2 好像会被其他包依赖，所以不用管
 
 # Evaluation metrics
 rouge-score==0.1.2

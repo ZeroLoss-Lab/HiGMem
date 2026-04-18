@@ -1,4 +1,3 @@
-# --- MODIFICATION START ---
 # fphm_core.py
 
 import json
@@ -59,7 +58,6 @@ class FPHMSystem:
                  ablation_no_filter: bool = False,
                  ablation_no_link: bool = False,
                  ablation_no_event: bool = False,
-                 # 代码内注释：在构造函数中接收新的消融标志。
                  ablation_mpnet_retrieval: bool = False,
                  log_dir: str = "fphm_logs"):
         self.k_event_affiliation = k_event_affiliation
@@ -74,7 +72,6 @@ class FPHMSystem:
         self.ablation_no_filter = ablation_no_filter
         self.ablation_no_link = ablation_no_link
         self.ablation_no_event = ablation_no_event
-        # 代码内注释：将新的消融标志保存为实例属性。
         self.ablation_mpnet_retrieval = ablation_mpnet_retrieval
         self.logger.log("init", {
             "use_character_profile": self.use_character_profile,
@@ -87,7 +84,6 @@ class FPHMSystem:
             "ablation_no_filter": self.ablation_no_filter,
             "ablation_no_link": self.ablation_no_link,
             "ablation_no_event": self.ablation_no_event,
-            # 代码内注释：在日志中记录当前是否启用了MPNet检索模式。
             "ablation_mpnet_retrieval": self.ablation_mpnet_retrieval,
             "mode": "synchronous_incremental_indexing_v8_ablations"
         })
@@ -96,14 +92,12 @@ class FPHMSystem:
         self.events: Dict[str, EventSummary] = {}
         self.profiles: Dict[str, CharacterProfile] = {}
 
-        # 代码内注释：根据消融标志，决定使用哪个SentenceTransformer模型。
         if self.ablation_mpnet_retrieval:
             retriever_model_name = 'all-mpnet-base-v2'
             self.logger.log("retriever_model_selected", {"model": retriever_model_name})
         else:
             retriever_model_name = 'all-MiniLM-L6-v2'
 
-        # 代码内注释：使用选定的模型名称初始化所有检索器。
         self.turn_retriever = SimpleEmbeddingRetriever(model_name=retriever_model_name)
         self.event_retriever = SimpleEmbeddingRetriever(model_name=retriever_model_name)
         if self.use_character_profile:
@@ -111,9 +105,48 @@ class FPHMSystem:
         self.last_updated_event_id: Optional[str] = None
         self.recent_turns_window: List[TurnNote] = []
         self.executor = ThreadPoolExecutor(max_workers=10)
-# --- MODIFICATION END ---
+    def spawn_qa_view(
+        self,
+        llm_controller: Optional[LLMController] = None,
+        *,
+        executor_workers: int = 10,
+    ) -> "FPHMSystem":
+        """
+        Create a read-only QA view that shares the current memory snapshot but owns an
+        independent LLM controller / executor.
+
+        This is used for question-level parallelism at a fixed checkpoint:
+        the underlying memory state is not mutated during QA, while token accounting and
+        LLM calls remain isolated per worker.
+        """
+        qa_view = object.__new__(FPHMSystem)
+        qa_view.k_event_affiliation = self.k_event_affiliation
+        qa_view.llm = llm_controller or self.llm
+        qa_view.logger = self.logger
+        qa_view.use_character_profile = self.use_character_profile
+        qa_view.immediate_link_window = self.immediate_link_window
+        qa_view.use_event_title_mode = self.use_event_title_mode
+        qa_view.use_event_metadata_mode = self.use_event_metadata_mode
+        qa_view.use_attribute_focused_profile = self.use_attribute_focused_profile
+        qa_view.ablation_no_fact_judgment = self.ablation_no_fact_judgment
+        qa_view.ablation_no_filter = self.ablation_no_filter
+        qa_view.ablation_no_link = self.ablation_no_link
+        qa_view.ablation_no_event = self.ablation_no_event
+        qa_view.ablation_mpnet_retrieval = self.ablation_mpnet_retrieval
+        qa_view.turn_notes = self.turn_notes
+        qa_view.events = self.events
+        qa_view.profiles = self.profiles
+        qa_view.turn_retriever = self.turn_retriever
+        qa_view.event_retriever = self.event_retriever
+        if self.use_character_profile:
+            qa_view.profile_retriever = self.profile_retriever
+        qa_view.last_updated_event_id = self.last_updated_event_id
+        qa_view.recent_turns_window = self.recent_turns_window
+        qa_view.executor = ThreadPoolExecutor(max_workers=max(1, int(executor_workers)))
+        return qa_view
+
     @retry()
-    def _get_llm_json_response(self, prompt: str, schema: dict, caller: str, temperature: float = 0.1) -> Any:
+    def _get_llm_json_response(self, prompt: str, schema: dict, caller: str, temperature: float = 0.0) -> Any:
         response_str = None
         parsed_response = None
         try:
@@ -146,6 +179,19 @@ class FPHMSystem:
                 # Best-effort salvage for OpenAI-compatible servers / open models that may wrap JSON
                 # in extra text. This does not affect normal runs where the response is already valid JSON.
                 cleaned = str(response_str or "").strip()
+                expected = schema.get("schema", {}) if isinstance(schema, dict) else {}
+                if expected.get("type") == "object":
+                    props = expected.get("properties", {}) or {}
+                    required = expected.get("required", []) or []
+                    if len(required) == 1:
+                        key = required[0]
+                        prop_type = (props.get(key) or {}).get("type")
+                        if prop_type == "string" and cleaned:
+                            # Open-source / OpenAI-compatible servers sometimes ignore json_schema
+                            # and directly return the final option text. Preserve that answer instead
+                            # of degrading to an empty string.
+                            parsed_response = {key: cleaned}
+                            return parsed_response
                 # Try object-shaped extraction.
                 if "{" in cleaned and "}" in cleaned:
                     start = cleaned.find("{")
@@ -230,7 +276,6 @@ class FPHMSystem:
             User Question: {question}
             """
 
-        # 代码内注释：调用系统自身的LLM控制器。
         response = self.llm.llm.get_completion(prompt, response_format={"type": "json_schema", "json_schema": {
             "name": "response",
             "schema": {
@@ -255,7 +300,6 @@ class FPHMSystem:
                     response = json.loads(clean_response)["search_query"]
                 except:
                     response = response.strip()
-        # 代码内注释：按照你的设计，将原始问题和重写后的查询拼接起来，形成最终查询。
         final_query = f"{question} {response}"
 
         return final_query
@@ -369,7 +413,6 @@ class FPHMSystem:
         candidate_event_indices = self.event_retriever.search(turn.content, k=self.k_event_affiliation)
         candidate_event_ids = [self.event_retriever.document_ids[i] for i in candidate_event_indices]
         candidate_events_list = [self.events[eid] for eid in candidate_event_ids if eid in self.events]
-        # 代码内注释：当处于 `event_metadata_mode` 或 `event_title_mode` 时，都使用 title 作为摘要。
         if self.use_event_title_mode or self.use_event_metadata_mode:
             candidate_events_str = json.dumps(
                 [{"id": e.id, "title": e.title} for e in candidate_events_list],
@@ -451,7 +494,6 @@ class FPHMSystem:
             self.events[new_event_id] = new_event
             final_affiliations.append(new_event_id)
             if self.use_event_title_mode or self.use_event_metadata_mode:
-                # 代码内注释：对于新模式，初始索引内容为空或只包含标题，后续会更新。
                 self.event_retriever.add_document(doc_id=new_event_id, doc_content=new_event.title)
             else:
                 self.event_retriever.add_document(doc_id=new_event_id, doc_content=new_event.summary_content)
@@ -554,9 +596,7 @@ class FPHMSystem:
             event.summary_content = ""
             doc_content = event.title
             self.event_retriever.add_document(doc_id=event_id, doc_content=doc_content)
-        # 代码内注释：这是你要求的新消融模式 `event_metadata_mode` 的核心逻辑。
         elif self.use_event_metadata_mode:
-            # 对于小事件（<10 turns），逻辑与 `event_title_mode` 完全相同，维护所有元数据和事实列表。
             if len(event.turn_note_ids) < 10:
                 current_fact_sheet_json_input = json.dumps(event.fact_sheet.__dict__, default=str, ensure_ascii=False)
                 prompt = prompts.UPDATE_ADAPTIVE_SUMMARY_PROMPT.format(
@@ -579,12 +619,11 @@ class FPHMSystem:
                 response = self._get_llm_json_response(prompt, schema, caller='_update_event_metadata_small')
                 self.logger.log("update_event_metadata_small", {"event_id": event_id, "llm_response": response})
                 if response:
-                    event.title = response.get('updated_summary', event.title)  # 在此模式下，summary字段被用作title
+                    event.title = response.get('updated_summary', event.title)
                     event.keywords = response.get('updated_keywords', event.keywords)
                     event.tags = response.get('updated_tags', event.tags)
                     new_facts = response.get('new_facts', [])
                     event.fact_sheet.timeline.extend(new_facts)
-            # 对于大事件（>=10 turns），使用新的高效Prompt，不再维护事实列表。
             else:
                 prompt = prompts.UPDATE_EVENT_METADATA_LARGE_EVENT_PROMPT.format(
                     current_title=event.title,
@@ -602,10 +641,8 @@ class FPHMSystem:
                 if response and response.get('is_relevant'):
                     event.keywords = response.get('updated_keywords', event.keywords)
                     event.tags = response.get('updated_tags', event.tags)
-                # 代码内注释：注意，这里我们不再向 fact_sheet 添加任何内容。
 
-            event.summary_content = ""  # 确保summary_content为空
-            # 代码内注释：根据你的要求，为向量检索器构建索引文档，格式为 "keywords tags title"。
+            event.summary_content = ""
             doc_content = f"{' '.join(event.keywords)} {' '.join(event.tags)} {event.title}"
             self.event_retriever.add_document(doc_id=event_id, doc_content=doc_content)
         else:
@@ -832,7 +869,6 @@ class FPHMSystem:
         if self.use_event_title_mode:
             event_docs = {eid: self._get_facts_as_string(e) for eid, e in self.events.items()}
             self.logger.log("build_indices_event_mode", {"mode": "title_mode (facts indexed)"})
-        # 代码内注释：为新模式构建最终索引。
         elif self.use_event_metadata_mode:
             event_docs = {eid: f"{' '.join(e.keywords)} {' '.join(e.tags)} {e.title}" for eid, e in self.events.items()}
             self.logger.log("build_indices_event_mode", {"mode": "metadata_mode (keywords+tags+title indexed)"})
@@ -854,7 +890,6 @@ class FPHMSystem:
         item_chunks = [dict(list(items.items())[i:i + chunk_size]) for i in range(0, len(items), chunk_size)]
         futures = []
         for chunk in item_chunks:
-            # 代码内注释：移除了内容截断 `[:300]...`，现在LLM会看到完整的Turn内容。
             formatted_items = "\n".join([f"- ID: {id}\n  Content: {content}" for id, content in chunk.items()])
             prompt = prompts.RELEVANCE_JUDGMENT_PROMPT.format(original_query=query,
                                                               memory_items_formatted_string=formatted_items)
@@ -872,12 +907,9 @@ class FPHMSystem:
                          "chunk_size": chunk_size})
         return relevant_ids
 
-    # --- MODIFICATION END ---
-    # --- MODIFICATION START ---
     def _judge_relevance_sequential(self, query: str, items: Dict[str, str], item_type: str) -> List[str]:
         if not items:
             return []
-        # 代码内注释：移除了内容截断 `[:300]...`，现在LLM会看到完整的Turn内容。
         formatted_items = "\n".join([f"- ID: {id}\n  Content: {content}" for id, content in items.items()])
         prompt = prompts.RELEVANCE_JUDGMENT_PROMPT.format(
             original_query=query,
@@ -901,7 +933,6 @@ class FPHMSystem:
                         {"query": query, "candidates": list(items.keys()), "selected": relevant_ids})
         return relevant_ids
 
-    # --- MODIFICATION START ---
     def retrieve_for_query(
         self,
         original_query: str,
@@ -1058,29 +1089,21 @@ Based on the question and the event's context, identify which of the dialogue tu
             "relevant_events": relevant_event_ids,
             "predicted_turns": predicted_turn_ids_from_events
         })
-        # 代码内注释：这是你要求添加的代码块的开始。
-        # 步骤1：融合来自直接向量检索和事件预测的Turn ID。
         initial_fused_turn_ids = list(set(candidate_turn_ids + predicted_turn_ids_from_events))
 
-        # 步骤2：通过TurnNote之间预先建立的`links`来扩展候选集。
         expanded_turn_ids = list(initial_fused_turn_ids)
         added_by_links = {}
-        #这里是故意设计，这样效果会好，是feature
         if not self.ablation_no_link:
             for turn_id in initial_fused_turn_ids:
                 if turn_id in self.turn_notes:
                     note = self.turn_notes[turn_id]
                     linked_ids = [link.target_id for link in note.links]
                     if linked_ids:
-                        # 代码内注释：记录下是从哪个turn扩展出了哪些新turn，便于调试分析。
                         added_by_links[turn_id] = linked_ids
-                        # 代码内注释：【逻辑修正】将找到的链接ID实际添加到扩展列表中。
                         expanded_turn_ids.extend(linked_ids)
 
-        # 步骤3：对扩展后的列表去重，得到最终的候选Turn ID集合。
         final_fused_candidate_turn_ids = list(set(expanded_turn_ids))
 
-        # 步骤4：为链接扩展步骤添加详细日志，用于分析其效果。
         self.logger.log("expand_turns_by_links", {
             "query": original_query,
             "initial_candidates_count": len(initial_fused_turn_ids),
@@ -1089,9 +1112,7 @@ Based on the question and the event's context, identify which of the dialogue tu
             "expanded_candidates_count": len(final_fused_candidate_turn_ids),
             "expanded_candidates": final_fused_candidate_turn_ids
         })
-        # 代码内注释：这是你要求添加的代码块的结束。
 
-        # 代码内注释：使用经过链接扩展后的最终候选ID列表（final_fused_candidate_turn_ids）来构建用于LLM判断的材料。
         candidate_turns = {tid: self.turn_notes[tid].content for tid in final_fused_candidate_turn_ids if
                            tid in self.turn_notes}
         if self.ablation_no_filter:
@@ -1134,4 +1155,3 @@ Based on the question and the event's context, identify which of the dialogue tu
             }
             return final_context, trace
         return final_context
-# --- MODIFICATION END ---
