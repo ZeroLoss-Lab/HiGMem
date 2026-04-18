@@ -186,15 +186,11 @@ The main evaluation script exposes ablation flags used in our experiments:
 - `--ablation-mpnet-retrieval`
 - `--disable_query_rewriting_llm`
 
-For the main paper setting, use only:
+For the main paper setting, use:
 
 ```bash
 --ablation-no-profile --ablation-event-metadata-only --ablation-no-link --k_event 10
 ```
-
-In this public code, `--ablation-no-link` is the correct flag for disabling turn-turn links. It switches turn construction to the isolated turn prompt and disables link-based turn expansion during retrieval.
-
-Do not pass `--disable_query_rewriting_llm` for the paper setting; query rewriting is enabled by default.
 
 ## Dataset
 
