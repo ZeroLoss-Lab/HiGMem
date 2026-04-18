@@ -39,8 +39,6 @@ HiGMem processes each conversation turn incrementally:
 4. **Retrieval for QA**: the question is rewritten into retrieval keywords, candidate events and turns are retrieved, and an LLM filter selects final evidence turns.
 5. **Final answer generation**: the final QA prompt uses the retrieved turns and follows the LoCoMo prompt family aligned with A-Mem.
 
-The main paper setting disables immediate turn-turn links and uses the Event layer as the main semantic anchor.
-
 ## Repository Structure
 
 ```text
