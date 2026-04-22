@@ -10,7 +10,7 @@ You are a dialogue analyst and knowledge graph architect. Your task is to proces
 ## Core Instructions:
 1.  **Analyze Content**: Generate `keywords`, a `context` summary, and `tags` for the "Current Turn".
 2.  **Identify Specific Entities for Profile Retrieval**: From the "Current Turn", extract all **specific, identifiable entities** whose profiles would be relevant for understanding this turn's context.
-    - An entity MUST be a **Named Entity** (e.g., 'Anna', 'Melanie', 'Aspen', 'Fido') OR a **Specifically Owned Entity** (e.g., 'Caroline's children', 'Melanie's husband').
+    - An entity MUST be a **Named Entity** (e.g., 'Liora', 'Marek', 'Harborvale', 'Nimbo') OR a **Specifically Owned Entity** (e.g., 'Liora's students', 'Marek's partner').
     - Do NOT extract generic common nouns like 'friends', 'kids', 'family', or abstract concepts like 'mental health'.
 3.  **Identify Conversational Links**: Determine if the "Current Turn" has a direct conversational relationship (e.g., question-answer) with any turn in the "Recent History".
 ## Recent History (previous {window_size} turns):
@@ -26,7 +26,7 @@ You are a dialogue analyst and knowledge graph architect. Your task is to proces
     "context": "A one-sentence summary of the turn's context.",
     "tags": ["list of broad categories/themes"]
   }},
-  "profile_retrieval_keys": ["list of specific entity names to look up, e.g., 'Caroline', 'Melanie', 'Caroline's children'"],
+  "profile_retrieval_keys": ["list of specific entity names to look up, e.g., 'Liora', 'Marek', 'Liora's students'"],
   "direct_links": [
     {{
       "target_turn_id": "ID of a turn from recent history",
@@ -45,7 +45,7 @@ UPDATE_EVENT_PROMPT = """
 You are a meticulous archivist. Your task is to update an event summary and its fact sheet by integrating a new dialogue turn.
 ## Core Instructions:
 1.  **Analyze Context**: Understand the "New Turn" in the context of the "Recent Dialogue Turns" that preceded it.
-2.  **Identify Specific Entities**: From the "New Turn" and its context, list all key entities involved for whom a personal profile might be created. An entity MUST be a **Named Entity** (e.g., 'Anna', 'Melanie', 'Aspen', 'Fido') OR a **Specifically Owned Entity** (e.g., "Caroline's children", "Melanie's husband"). 
+2.  **Identify Specific Entities**: From the "New Turn" and its context, list all key entities involved for whom a personal profile might be created. An entity MUST be a **Named Entity** (e.g., 'Liora', 'Marek', 'Harborvale', 'Nimbo') OR a **Specifically Owned Entity** (e.g., "Liora's students", "Marek's partner"). 
     - **DO NOT** extract abstract concepts ('mental health', 'counseling'), activities ('painting'), or generic groups ('friends', 'kids', 'family').
 3.  **Fact Extraction**: Extract all objective facts from the "New Turn".
 4.  **Update Summary**: Rewrite the "Current Summary" to chronologically incorporate the new facts. When you add information from the "New Turn", you MUST append its ID as evidence, like this: [turn_id].
@@ -61,14 +61,14 @@ You are a meticulous archivist. Your task is to update an event summary and its 
 {new_turn_text}
 ## Output (JSON format):
 {{
-  "specific_entities": ["list of all unique specific entity names found, e.g., 'Anna', 'Caroline's children'. This list should be empty if no valid entities are found."],
-  "updated_summary_text": "The new, complete narrative of the event, with evidence IDs. For example: 'Anna made a gluten-free cake [D8:8] for her dog, Fido [D8:8].'",
+  "specific_entities": ["list of all unique specific entity names found, e.g., 'Liora', 'Liora's students'. This list should be empty if no valid entities are found."],
+  "updated_summary_text": "The new, complete narrative of the event, with evidence IDs. For example: 'Liora made a sugar-free tart [D8:8] for her cat, Nimbo [D8:8].'",
   "updated_fact_sheet": {{
     "timeline": [
-      {{"timestamp": "...", "fact": "Anna made a cake.", "evidence_turn_id": "D8:8"}},
-      {{"timestamp": "...", "fact": "The cake was for Fido.", "evidence_turn_id": "D8:8"}}
+      {{"timestamp": "...", "fact": "Liora made a tart.", "evidence_turn_id": "D8:8"}},
+      {{"timestamp": "...", "fact": "The tart was for Nimbo.", "evidence_turn_id": "D8:8"}}
     ],
-    "key_entities": ["Anna", "cake", "Fido"]
+    "key_entities": ["Liora", "tart", "Nimbo"]
   }}
 }}
 """
@@ -84,12 +84,12 @@ You are a lead biographer deciding which entity profiles to update based on a co
 - **Summary**: {event_summary}
 ## Instructions:
 Analyze the event summary. For each identified entity, decide if this event contains significant new information about them that warrants an update to their personal profile. An update is warranted if the event reveals new personality traits, hobbies, life goals, relationships, or significant life events for that entity.
-**An entity MUST be a Named Entity (e.g., 'Anna', 'Fido') or a Specifically Owned Entity (e.g., 'Caroline's children'). Do not suggest updates for abstract concepts or generic groups.**
+**An entity MUST be a Named Entity (e.g., 'Liora', 'Nimbo') or a Specifically Owned Entity (e.g., 'Liora's students'). Do not suggest updates for abstract concepts or generic groups.**
 ## Output (JSON format):
 {{
   "update_decisions": [
     {{
-      "entity_name": "A specific entity name from the list, e.g., 'Anna' or 'Fido the dog'",
+      "entity_name": "A specific entity name from the list, e.g., 'Liora' or 'Nimbo the cat'",
       "should_update": boolean,
       "reasoning": "Briefly explain why this event is (or is not) significant for this entity's profile."
     }}
@@ -115,10 +115,10 @@ You are a character analyst and biographer. Update the profile for an entity (pe
 - **Event Fact Sheet**: {event_fact_sheet_json}
 ## Output (JSON format):
 {{
-  "updated_profile_summary": "A comprehensive narrative of the entity, with evidence IDs. For example: 'Fido is a beloved dog who enjoys special treats like gluten-free cake [event_cake_baking].'",
+  "updated_profile_summary": "A comprehensive narrative of the entity, with evidence IDs. For example: 'Nimbo is a beloved cat who enjoys special treats like sugar-free tart [event_tart_baking].'",
   "updated_attributes": {{
-    "diet": ["gluten-free cake [event_cake_baking]"],
-    "owner": ["Anna [event_cake_baking]"]
+    "diet": ["sugar-free tart [event_tart_baking]"],
+    "owner": ["Liora [event_tart_baking]"]
   }}
 }}
 """
@@ -156,9 +156,9 @@ RELEVANCE_JUDGMENT_PROMPT = """
 You are a helpful research assistant. Your task is to judge if the following memory items are helpful for answering the question.
 
 ## Core Instructions:
-1.  **Analyze Question**: Identify the main subject(s) (person, pet, entity), the core action/topic, and any temporal constraints (e.g., 'after the road trip', 'in June 2023') from the "Question".
+1.  **Analyze Question**: Identify the main subject(s) (person, pet, entity), the core action/topic, and any temporal constraints (e.g., 'after the workshop', 'in early spring') from the "Question".
 2.  **Primary Filter (Subject Check)**: A memory item is **highly relevant** if its main subject matches the question's subject.
-3.  **Secondary Filter (Context Check)**: If the subject doesn't directly match, consider if the item provides crucial context to the question's topic. For example, if the question is about 'Anna's feelings', a memory of 'Bob comforting Anna' is relevant even if Bob is the speaker.
+3.  **Secondary Filter (Context Check)**: If the subject doesn't directly match, consider if the item provides crucial context to the question's topic. For example, if the question is about 'Liora's feelings', a memory of 'Marek encouraging Liora' is relevant even if Marek is the speaker.
 4.  **Be Inclusive, Not Strict**: Your goal is to provide all potentially useful clues. When in doubt, lean towards including the memory item. Do not discard a memory just because one aspect (e.g., time) doesn't perfectly match, if other aspects are highly relevant.
 
 ## Question:
@@ -179,14 +179,14 @@ You are a search query optimization expert. Your task is to analyze a user's que
     - Do not include conversational filler or question words (like 'what', 'how', 'did').
     - The output should be a single string of space-separated keywords.
 2.  **Profile Retrieval Keys**: A list of all **specific, identifiable entities** mentioned in the question whose profiles would be relevant.
-    - An entity MUST be a **Named Entity** (e.g., 'Evan', 'Sam', 'Fido') OR a **Specifically Owned Entity** (e.g., 'Evan's son').
+    - An entity MUST be a **Named Entity** (e.g., 'Riven', 'Talia', 'Nimbo') OR a **Specifically Owned Entity** (e.g., 'Riven's sibling').
     - Do NOT extract generic nouns ('car', 'friend') or abstract concepts ('advice', 'growth').
 ## User Question:
 "{original_query}"
 ## Output (JSON format):
 {{
   "keyword_query": "keyword1 keyword2 entity3...",
-  "profile_retrieval_keys": ["list of specific entity names to look up, e.g., 'Evan', 'Sam'"]
+  "profile_retrieval_keys": ["list of specific entity names to look up, e.g., 'Riven', 'Talia'"]
 }}
 """
 
@@ -336,8 +336,8 @@ You are a character analyst creating a structured fact sheet for an entity. Your
 {{
   "updated_profile_summary": "A very concise, one-line summary of the entity.",
   "updated_attributes": {{
-    "hobbies": ["baking [event:event_cake_baking, turn:D8:8]", "skiing [event:ski_trip]"],
-    "pets": ["dog named Fido [event:event_cake_baking, turn:D8:8]"]
+    "hobbies": ["baking [event:event_tart_baking, turn:D8:8]", "kite-making [event:kite_workshop]"],
+    "pets": ["cat named Nimbo [event:event_tart_baking, turn:D8:8]"]
   }}
 }}
 """
@@ -366,7 +366,7 @@ You are a dialogue analyst. Your task is to process a "Current Turn" in isolatio
 ## Core Instructions:
 1.  **Analyze Content**: Generate `keywords`, a `context` summary, and `tags` for the "Current Turn".
 2.  **Identify Specific Entities for Profile Retrieval**: From the "Current Turn", extract all **specific, identifiable entities** whose profiles would be relevant for understanding this turn's context.
-    - An entity MUST be a **Named Entity** (e.g., 'Anna', 'Melanie', 'Aspen', 'Fido') OR a **Specifically Owned Entity** (e.g., 'Caroline's children', 'Melanie's husband').
+    - An entity MUST be a **Named Entity** (e.g., 'Liora', 'Marek', 'Harborvale', 'Nimbo') OR a **Specifically Owned Entity** (e.g., 'Liora's students', 'Marek's partner').
     - Do NOT extract generic common nouns like 'friends', 'kids', 'family', or abstract concepts like 'mental health'.
 ## Current Turn to Process:
 - Speaker: {speaker}
@@ -379,7 +379,7 @@ You are a dialogue analyst. Your task is to process a "Current Turn" in isolatio
     "context": "A one-sentence summary of the turn's context.",
     "tags": ["list of broad categories/themes"]
   }},
-  "profile_retrieval_keys": ["list of specific entity names to look up, e.g., 'Caroline', 'Melanie', 'Caroline's children'"]
+  "profile_retrieval_keys": ["list of specific entity names to look up, e.g., 'Liora', 'Marek', 'Liora's students'"]
 }}
 """
 
